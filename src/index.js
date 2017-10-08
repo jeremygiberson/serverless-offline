@@ -113,6 +113,9 @@ class Offline {
           exec: {
             usage: 'When provided, a shell script is executed when the server starts up, and the server will shut domn after handling this command.',
           },
+          noAuth: {
+            usage: 'Turns off all authorizers',
+          },
         },
       },
     };
@@ -220,6 +223,7 @@ class Offline {
       dontPrintOutput: false,
       httpsProtocol: '',
       skipCacheInvalidation: false,
+      noAuth: false,
       corsAllowOrigin: '*',
       corsAllowHeaders: 'accept,content-type,x-api-key',
       corsAllowCredentials: true,
@@ -371,7 +375,7 @@ class Offline {
         this.serverlessLog(`${method} ${fullPath}`);
 
         // If the endpoint has an authorization function, create an authStrategy for the route
-        const authStrategyName = this._configureAuthorization(endpoint, funName, method, epath, servicePath);
+        const authStrategyName = this.options.noAuth ? null : this._configureAuthorization(endpoint, funName, method, epath, servicePath);
 
         let cors = null;
         if (endpoint.cors) {
@@ -391,7 +395,9 @@ class Offline {
         };
 
         if (routeMethod !== 'HEAD' && routeMethod !== 'GET') {
-          routeConfig.payload = { parse: false };
+          // maxBytes: Increase request size from 1MB default limit to 10MB.
+          // Cf AWS API GW payload limits.
+          routeConfig.payload = { parse: false, maxBytes: 1024 * 1024 * 10 };
         }
 
         this.server.route({
@@ -425,7 +431,7 @@ class Offline {
             // Lib testing
             else {
               request.unprocessedHeaders = request.headers;
-              console.log('request.unprocessedHeaders:', request.unprocessedHeaders);
+              // console.log('request.unprocessedHeaders:', request.unprocessedHeaders);
             }
 
 
@@ -670,7 +676,7 @@ class Offline {
                     // BAD IMPLEMENTATION: first key in responseTemplates
                     const responseTemplate = responseTemplates[responseContentType];
 
-                    if (responseTemplate) {
+                    if (responseTemplate && responseTemplate !== '\n') {
 
                       debugLog('_____ RESPONSE TEMPLATE PROCCESSING _____');
                       debugLog(`Using responseTemplate '${responseContentType}'`);

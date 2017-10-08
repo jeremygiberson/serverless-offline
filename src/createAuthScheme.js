@@ -37,7 +37,7 @@ module.exports = function createAuthScheme(authFun, authorizerOptions, funName, 
       const event = {
         type: 'TOKEN',
         authorizationToken: authorization,
-        methodArn: `arn:aws:execute-api:${options.region}:random-account-id:random-api-id/${options.stage}/${request.method.toUpperCase()}${request.path}`,
+        methodArn: `arn:aws:execute-api:${options.region}:random-account-id:random-api-id/${options.stage}/${request.method.toUpperCase()}${request.path.replace(new RegExp(`^/${options.stage}`), '')}`,
       };
 
       // Create the Authorization function handler
@@ -47,7 +47,9 @@ module.exports = function createAuthScheme(authFun, authorizerOptions, funName, 
         handler = functionHelper.createHandler(funOptions, options);
       }
       catch (err) {
-        return reply(Boom.badImplementation(null, `Error while loading ${authFunName}`));
+        debugLog(`create authorization function handler error: ${err}`);
+
+        return reply(Boom.badImplementation(null, `Error while loading ${authFunName}: ${err.message}`));
       }
 
       // Creat the Lambda Context for the Auth function
